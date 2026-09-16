@@ -651,9 +651,9 @@ export interface LocalImageOptions {
  * 把 HTML 里相对路径的图片替换为 data URL。
  *
  * 安全约束：入参必须是**已清理**的 HTML（上游 {@link markdownToHtml} 已用 DOMPurify 处理）。
- * 这里再做一次防御性 sanitize，让函数自身即使被新调用方误用也不会成为注入点；
- * 顺序很关键——必须在替换 data URL **之前**清理，因为 DOMPurify 的 URI 白名单会把
- * `data:` 前缀当成不允许的协议去掉。
+ * 这里再做一次防御性 sanitize，让函数自身即使被新调用方误用也不会成为注入点。
+ * 顺序放在替换 data URL **之前**：这样只需要清理资源作者提供的内容，不必把随后内联进来的
+ * base64 图片（可能很大）再送进 DOMPurify 解析一遍。
  *
  * 用 DOM 而不是正则改写：属性顺序、alt/title 里的特殊字符、路径里的引号都不会影响结果。
  */
