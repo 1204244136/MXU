@@ -620,12 +620,14 @@ interface MarkdownParser {
   parse(src: string, options: { async: false }): string;
 }
 
-/** DOMPurify 清理：配置集中一处，避免不同调用点的白名单漂移 */
-function sanitizeHtml(rawHtml: string): string {
-  return DOMPurify.sanitize(rawHtml, {
-    ADD_ATTR: ['target', 'rel', 'style'],
-  });
-}
+/**
+ * DOMPurify 配置：集中一处，避免不同调用点的白名单漂移。
+ *
+ * 刻意不包成 `sanitizeHtml()` 之类的本地 helper：静态扫描（opengrep/semgrep 的
+ * innerHTML 规则）只认赋值点上的直接 `DOMPurify.sanitize(...)` 调用，
+ * 多包一层会让本来就已清理的写法继续被报成可疑写入。
+ */
+const PURIFY_CONFIG = { ADD_ATTR: ['target', 'rel', 'style'] };
 
 /**
  * 将 Markdown 转换为安全的 HTML
@@ -635,7 +637,7 @@ function sanitizeHtml(rawHtml: string): string {
  * @param parser 使用的 marked 实例；默认全局实例，行内 label 传入 {@link inlineMarked}
  */
 export function markdownToHtml(markdown: string, parser: MarkdownParser = marked): string {
-  return sanitizeHtml(parser.parse(markdown, { async: false }));
+  return DOMPurify.sanitize(parser.parse(markdown, { async: false }), PURIFY_CONFIG);
 }
 
 /** 本地图片处理选项 */
@@ -663,7 +665,9 @@ async function resolveLocalImages(
   options: LocalImageOptions = {},
 ): Promise<string> {
   const container = document.createElement('div');
-  container.innerHTML = sanitizeHtml(html);
+  // 就在赋值点做清理（而不是调用本地 helper）：写入 innerHTML 的值必须是 DOMPurify 的产物，
+  // 这一点在代码里直接可见，也让静态扫描不必依赖跨函数的数据流分析。
+  container.innerHTML = DOMPurify.sanitize(html, PURIFY_CONFIG);
 
   await Promise.all(
     Array.from(container.querySelectorAll('img')).map(async (img) => {
