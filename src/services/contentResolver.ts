@@ -378,8 +378,15 @@ const iconDataUrlCache = new Map<string, string>();
 /** 同一路径的并发读取去重，避免首屏同时发起 N 次 IPC */
 const iconLoadInFlight = new Map<string, Promise<string | undefined>>();
 
+/**
+ * 缓存代数，每次 {@link clearIconDataUrlCache} 自增。
+ * 用于丢弃「清空之前发起、清空之后才完成」的读取结果，避免切换资源后写回旧图标。
+ */
+let iconCacheGeneration = 0;
+
 /** 清空图标 data URL 缓存（加载 / 切换资源目录时调用） */
 export function clearIconDataUrlCache(): void {
+  iconCacheGeneration += 1;
   iconDataUrlCache.clear();
   iconLoadInFlight.clear();
 }
@@ -417,6 +424,7 @@ export async function loadIconAsDataUrl(
   const inFlight = iconLoadInFlight.get(fullPath);
   if (inFlight) return inFlight;
 
+  const generation = iconCacheGeneration;
   const task = (async (): Promise<string | undefined> => {
     try {
       if (isTauri()) {
@@ -426,8 +434,13 @@ export async function loadIconAsDataUrl(
         const mimeType = getMimeType(ext);
         return `data:${mimeType};base64,${base64}`;
       } else {
-        // 浏览器环境：通过后端本地文件代理 API 访问
-        return `${getApiBase()}/local-file?path=${encodeURIComponent(fullPath)}`;
+        // 浏览器环境：通过后端本地文件代理 API 访问。
+        // 先探测代理确实能提供该文件：否则调用方会把一个必然 404 的 URL 当成加载成功，
+        // 缺失的图标就会留下破图（Tauri 环境是真读文件，天然具备这个校验）。
+        const url = `${getApiBase()}/local-file?path=${encodeURIComponent(fullPath)}`;
+        const response = await fetch(url);
+        if (!response.ok) return undefined;
+        return url;
       }
     } catch (err) {
       log.warn(`加载图标失败 [${fullPath}]:`, err);
@@ -439,11 +452,13 @@ export async function loadIconAsDataUrl(
 
   try {
     const result = await task;
-    // 只缓存成功结果：文件缺失等情况下次仍会重试
-    if (result) iconDataUrlCache.set(fullPath, result);
+    // 只缓存成功结果：文件缺失等情况下次仍会重试；
+    // 且只缓存本代数的结果，避免清空缓存后写回旧资源目录的图标
+    if (result && generation === iconCacheGeneration) iconDataUrlCache.set(fullPath, result);
     return result;
   } finally {
-    iconLoadInFlight.delete(fullPath);
+    // 只清理自己那一项：清空缓存后新发起的同路径请求不能被旧请求删掉
+    if (iconLoadInFlight.get(fullPath) === task) iconLoadInFlight.delete(fullPath);
   }
 }
 
@@ -605,6 +620,13 @@ interface MarkdownParser {
   parse(src: string, options: { async: false }): string;
 }
 
+/** DOMPurify 清理：配置集中一处，避免不同调用点的白名单漂移 */
+function sanitizeHtml(rawHtml: string): string {
+  return DOMPurify.sanitize(rawHtml, {
+    ADD_ATTR: ['target', 'rel', 'style'],
+  });
+}
+
 /**
  * 将 Markdown 转换为安全的 HTML
  * 使用 marked 解析 markdown，使用 DOMPurify 清理 HTML 防止 XSS
@@ -613,10 +635,7 @@ interface MarkdownParser {
  * @param parser 使用的 marked 实例；默认全局实例，行内 label 传入 {@link inlineMarked}
  */
 export function markdownToHtml(markdown: string, parser: MarkdownParser = marked): string {
-  const rawHtml = parser.parse(markdown, { async: false });
-  return DOMPurify.sanitize(rawHtml, {
-    ADD_ATTR: ['target', 'rel', 'style'],
-  });
+  return sanitizeHtml(parser.parse(markdown, { async: false }));
 }
 
 /** 本地图片处理选项 */
@@ -631,6 +650,11 @@ export interface LocalImageOptions {
 /**
  * 把 HTML 里相对路径的图片替换为 data URL。
  *
+ * 安全约束：入参必须是**已清理**的 HTML（上游 {@link markdownToHtml} 已用 DOMPurify 处理）。
+ * 这里再做一次防御性 sanitize，让函数自身即使被新调用方误用也不会成为注入点；
+ * 顺序很关键——必须在替换 data URL **之前**清理，因为 DOMPurify 的 URI 白名单会把
+ * `data:` 前缀当成不允许的协议去掉。
+ *
  * 用 DOM 而不是正则改写：属性顺序、alt/title 里的特殊字符、路径里的引号都不会影响结果。
  */
 async function resolveLocalImages(
@@ -639,7 +663,7 @@ async function resolveLocalImages(
   options: LocalImageOptions = {},
 ): Promise<string> {
   const container = document.createElement('div');
-  container.innerHTML = html;
+  container.innerHTML = sanitizeHtml(html);
 
   await Promise.all(
     Array.from(container.querySelectorAll('img')).map(async (img) => {

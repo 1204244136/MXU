@@ -23,10 +23,18 @@ const INLINE_CODE = /`[^`]+`/;
 const INLINE_STRONG = /\*\*[^*]+\*\*/;
 
 /**
- * 白名单行内 HTML 标签。
- * 只认常见的行内标签名，避免把 `使用 <空格> 键` 这类纯文本当成 HTML。
+ * 支持的行内 HTML 标签名。
+ *
+ * 判定与清理必须共用同一份名单：两处各写一套时会出现「判定为纯文本、清理却仍删标签」
+ * 的不一致（例如纯文本 `模拟器 <MuMu> 启动` 被清理成 `模拟器 启动`）。
  */
-const INLINE_HTML_TAG = /<(?:img|br|b|strong|i|em|code|span|a|small|sub|sup)\b[^>]*>/i;
+const INLINE_HTML_TAGS = 'img|br|b|strong|i|em|code|span|a|small|sub|sup';
+
+/** 开标签：用于判定文本是否含富文本标记 */
+const INLINE_HTML_TAG = new RegExp(`<(?:${INLINE_HTML_TAGS})\\b[^>]*>`, 'i');
+
+/** 开 / 闭标签：用于清理，只匹配白名单内的标签名 */
+const INLINE_HTML_TAG_ANY = new RegExp(`</?(?:${INLINE_HTML_TAGS})\\b[^>]*>`, 'gi');
 
 /**
  * 文本是否包含行内富文本标记（用于 label、输入项标题等短文本）。
@@ -49,13 +57,14 @@ export function hasInlineRichText(text: string | undefined | null): boolean {
  * - 图片：保留 alt 文本（`![三星](x.png)` → `三星`），无 alt 时整体去掉；
  * - 链接：保留链接文字；
  * - 行内代码 / 加粗：保留内容，去掉定界符；
- * - HTML 标签：整体去掉。
+ * - HTML 标签：只去掉白名单内的行内标签；纯文本里的尖括号内容（`模拟器 <MuMu> 启动`）
+ *   不是标签，原样保留。
  */
 export function stripInlineRichText(text: string): string {
   return text
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/<[^>]+>/g, '')
+    .replace(INLINE_HTML_TAG_ANY, '')
     .replace(/`([^`]+)`/g, '$1')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/&nbsp;/g, ' ')

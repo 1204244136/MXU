@@ -48,6 +48,17 @@ test('stripInlineRichText：去掉定界符与标签，保留内容', () => {
   assert.equal(stripInlineRichText(' 多   空白\n换行 '), '多 空白 换行');
 });
 
+test('stripInlineRichText：白名单之外的尖括号纯文本原样保留（回归）', () => {
+  // 曾经的 bug：通用 /<[^>]+>/ 会把纯文本里的 <MuMu> 一起删掉，
+  // 使 ComboBox 搜索、任务预览、SwitchGrid title 显示的字凭空变少
+  assert.equal(stripInlineRichText('模拟器 <MuMu> 启动'), '模拟器 <MuMu> 启动');
+  assert.equal(stripInlineRichText('使用 <空格> 键暂停'), '使用 <空格> 键暂停');
+  assert.equal(stripInlineRichText('攻击力 <100 时撤退'), '攻击力 <100 时撤退');
+  // 白名单内的行内标签仍然会被去掉
+  assert.equal(stripInlineRichText('<br>换行'), '换行');
+  assert.equal(stripInlineRichText('名称 <span class="x">强调</span> 结束'), '名称 强调 结束');
+});
+
 test('hasRichTextFeatures：日志正文语法面更宽（多行 / 裸 URL）', () => {
   assert.equal(hasRichTextFeatures('第一行\n第二行'), true);
   assert.equal(hasRichTextFeatures('详情见 https://example.com/x'), true);
