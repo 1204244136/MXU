@@ -205,6 +205,7 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
   const preActionControlledInstanceIdRef = useRef<string | null>(null);
   const preActionStopRequestedRef = useRef(false);
   const lastStartCancelledRef = useRef(false);
+  const startingRef = useRef(false);
 
   const instance = getActiveInstance();
   const tasks = instance?.selectedTasks || [];
@@ -1564,31 +1565,41 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
         return;
       }
 
-      // 检查是否需要管理员权限
-      const needsElevation = await checkPermissionRequired();
-      if (needsElevation) {
-        setShowPermissionModal(true);
-        return;
-      }
-
-      setIsStarting(true);
-      setAutoConnectError(null);
+      // isStarting 是 state，disabled 要等重新渲染才生效，挡不住同一 tick 内的连点
+      if (startingRef.current) return;
+      startingRef.current = true;
 
       try {
-        // 调用统一入口启动任务，传入进度回调以更新 UI 状态
-        const success = await startTasksForInstance(instance, {
-          onPhaseChange: setAutoConnectPhase,
-        });
+        // 检查是否需要管理员权限
+        const needsElevation = await checkPermissionRequired();
+        if (needsElevation) {
+          setShowPermissionModal(true);
+          return;
+        }
 
-        if (!success && !lastStartCancelledRef.current) {
-          throw new Error(t('taskList.autoConnect.startFailed'));
+        setIsStarting(true);
+        setAutoConnectError(null);
+
+        try {
+          // 调用统一入口启动任务，传入进度回调以更新 UI 状态
+          const success = await startTasksForInstance(instance, {
+            onPhaseChange: setAutoConnectPhase,
+          });
+
+          if (!success && !lastStartCancelledRef.current) {
+            throw new Error(t('taskList.autoConnect.startFailed'));
+          }
+        } catch (err) {
+          log.error('任务启动异常:', err);
+          setAutoConnectError(err instanceof Error ? err.message : String(err));
+          setAutoConnectPhase('idle');
+        } finally {
+          setIsStarting(false);
         }
       } catch (err) {
-        log.error('任务启动异常:', err);
-        setAutoConnectError(err instanceof Error ? err.message : String(err));
-        setAutoConnectPhase('idle');
+        log.error('启动前检查异常:', err);
       } finally {
-        setIsStarting(false);
+        startingRef.current = false;
       }
     }
   };
