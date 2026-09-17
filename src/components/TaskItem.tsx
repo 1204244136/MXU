@@ -29,6 +29,7 @@ import type { SelectedTask, CaseItem } from '@/types/interface';
 import { isMxuSpecialTask, getMxuSpecialTask, findMxuOptionByKey } from '@/types/specialTasks';
 import { isPretaskName, getPretaskItem, buildPretaskDef } from '@/types/pretasks';
 import { getInterfaceLangKey } from '@/i18n';
+import { stripInlineRichText } from '@/utils/richText';
 import clsx from 'clsx';
 import { loggers } from '@/utils/logger';
 import { isPasswordInput } from '@/utils/passwordOptionValues';
@@ -47,6 +48,9 @@ function OptionPreviewTag({
   const truncateText = (text: string, max: number) =>
     text.length > max ? text.slice(0, max) + '…' : text;
 
+  // label 可能含行内 Markdown（图标等），预览标签空间有限，统一按纯文本处理
+  const plainLabel = stripInlineRichText(label);
+
   return (
     <span
       className={clsx(
@@ -54,12 +58,12 @@ function OptionPreviewTag({
         'text-text-tertiary',
         'max-w-[140px]',
       )}
-      title={`${label}: ${value}`}
+      title={`${plainLabel}: ${value}`}
     >
       {type === 'switch' ? (
         // Switch 类型：显示选项名 + 状态圆点
         <>
-          <span className="truncate">{truncateText(label, 6)}</span>
+          <span className="truncate">{truncateText(plainLabel, 6)}</span>
           <span
             className={clsx(
               'w-1.5 h-1.5 rounded-full flex-shrink-0',
@@ -70,7 +74,7 @@ function OptionPreviewTag({
       ) : (
         // Select/Input 类型：显示选项名: 值
         <>
-          <span className="truncate flex-shrink-0">{truncateText(label, 4)}</span>
+          <span className="truncate flex-shrink-0">{truncateText(plainLabel, 4)}</span>
           <span className="flex-shrink-0">:</span>
           <span className="truncate">{truncateText(value, 6)}</span>
         </>
