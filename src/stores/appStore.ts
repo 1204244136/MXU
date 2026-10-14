@@ -76,6 +76,7 @@ import {
 } from './helpers';
 import { persistRuntimeLogs } from '@/utils/runtimeLogPersistence';
 import { cacheTaskEnabledForController } from '@/utils/taskControllerCache';
+import { normalizeWeeklySchedule } from '@/utils/taskRunFilter';
 // 从独立模块导入类型和辅助函数
 import type { AppState, LogEntry, TaskRunStatus } from './types';
 
@@ -508,7 +509,7 @@ export const useAppStore = create<AppState>()(
                 instanceToClose.controllerName,
                 t.enabled,
               ),
-              weeklySchedule: t.weeklySchedule,
+              weeklySchedule: normalizeWeeklySchedule(t.weeklySchedule),
               optionValues: t.optionValues,
               expanded: t.expanded,
               collapsedOptions: t.collapsedOptions,
@@ -831,11 +832,7 @@ export const useAppStore = create<AppState>()(
                 ...i,
                 selectedTasks: i.selectedTasks.map((t) => {
                   if (t.id !== taskId) return t;
-                  // 去重并按 0-6 排序；空数组视为取消周计划
-                  const normalized = [...new Set(weekdays)].sort((a, b) => a - b);
-                  return normalized.length === 0
-                    ? { ...t, weeklySchedule: undefined }
-                    : { ...t, weeklySchedule: normalized };
+                  return { ...t, weeklySchedule: normalizeWeeklySchedule(weekdays) };
                 }),
               }
             : i,
@@ -1326,7 +1323,7 @@ export const useAppStore = create<AppState>()(
                 customName: t.customName,
                 enabled: t.enabled,
                 enabledByController: t.enabledByController,
-                weeklySchedule: t.weeklySchedule,
+                weeklySchedule: normalizeWeeklySchedule(t.weeklySchedule),
                 optionValues: t.optionValues,
                 expanded: prevExpandedByTask.get(t.id) ?? t.expanded ?? false,
                 collapsedOptions: prevCollapsedByTask.get(t.id) ?? t.collapsedOptions,
@@ -1355,7 +1352,7 @@ export const useAppStore = create<AppState>()(
                 customName: t.customName,
                 enabled: t.enabled,
                 enabledByController: t.enabledByController,
-                weeklySchedule: t.weeklySchedule,
+                weeklySchedule: normalizeWeeklySchedule(t.weeklySchedule),
                 optionValues: mergedValues,
                 expanded: prevExpandedByTask.get(t.id) ?? t.expanded ?? false,
                 collapsedOptions: prevCollapsedByTask.get(t.id) ?? t.collapsedOptions,
@@ -1384,7 +1381,7 @@ export const useAppStore = create<AppState>()(
               customName: t.customName,
               enabled: t.enabled,
               enabledByController: t.enabledByController,
-              weeklySchedule: t.weeklySchedule,
+              weeklySchedule: normalizeWeeklySchedule(t.weeklySchedule),
               optionValues: mergedValues,
               expanded: prevExpandedByTask.get(t.id) ?? t.expanded ?? false,
               collapsedOptions: prevCollapsedByTask.get(t.id) ?? t.collapsedOptions,
@@ -2183,7 +2180,7 @@ export const useAppStore = create<AppState>()(
           customName: t.customName,
           enabled: t.enabled,
           enabledByController: t.enabledByController ? { ...t.enabledByController } : undefined,
-          weeklySchedule: t.weeklySchedule ? [...t.weeklySchedule] : undefined,
+          weeklySchedule: normalizeWeeklySchedule(t.weeklySchedule),
           optionValues: restoreOptionValuesFromConfig(t.optionValues, pi, pi?.name),
           expanded: t.expanded ?? false,
           collapsedOptions: t.collapsedOptions ? { ...t.collapsedOptions } : undefined,
@@ -2461,7 +2458,7 @@ function generateConfig(): MxuConfig {
             inst.controllerName,
             t.enabled,
           ),
-          weeklySchedule: t.weeklySchedule,
+          weeklySchedule: normalizeWeeklySchedule(t.weeklySchedule),
           optionValues: t.optionValues,
           expanded: t.expanded,
           collapsedOptions: t.collapsedOptions,

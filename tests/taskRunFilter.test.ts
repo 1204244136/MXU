@@ -16,6 +16,7 @@ import {
   isTaskBlockedByWeeklySchedule,
   isTaskChecked,
   isTaskSelectedForRun,
+  normalizeWeeklySchedule,
 } from '../src/utils/taskRunFilter.ts';
 
 const SUN = 0;
@@ -36,6 +37,27 @@ function mk(id, opts = {}) {
 }
 
 const ids = (tasks) => tasks.map((t) => t.id);
+
+test('周计划清理：保留有效整数、去重排序，且不修改输入', () => {
+  const input = [WED, SUN, WED, 6, -1, 7, 1.5, '1', null, NaN, Infinity];
+  assert.deepEqual(normalizeWeeklySchedule(input), [SUN, WED, 6]);
+  assert.deepEqual(input, [WED, SUN, WED, 6, -1, 7, 1.5, '1', null, NaN, Infinity]);
+  const tasks = [mk('mixed', { enabled: true, weeklySchedule: input })];
+  assert.deepEqual(ids(filterTasksForRun(tasks, WED).tasks), ['mixed']);
+  assert.deepEqual(ids(filterTasksForRun(tasks, MON).tasks), []);
+});
+
+test('无效周计划不抛异常或造成整周跳过，沿用未启用规则', () => {
+  for (const weeklySchedule of [undefined, null, {}, '0', 0, [], [7, -1, 1.5, '3']]) {
+    assert.equal(normalizeWeeklySchedule(weeklySchedule), undefined);
+    const task = mk('invalid', { enabled: true, weeklySchedule });
+    for (let day = 0; day <= 6; day++) {
+      const result = filterTasksForRun([task], day);
+      assert.deepEqual(ids(result.tasks), ['invalid']);
+      assert.deepEqual(result.skippedByWeeklySchedule, []);
+    }
+  }
+});
 
 test('isTaskAllowedByWeeklySchedule：缺省 / 空数组视为未启用，一律放行', () => {
   assert.equal(isTaskAllowedByWeeklySchedule(mk('a'), WED), true);
@@ -115,6 +137,8 @@ test('常规启动：保持原始顺序', () => {
 
 test('「从此处运行」：锚点为显式操作绕过周计划，锚点之后仍受约束', () => {
   const tasks = [
+    mk('before', { enabled: true }),
+    mk('before-skipped', { enabled: true, weeklySchedule: [SUN] }),
     mk('anchor', { enabled: true, weeklySchedule: [SUN] }),
     mk('mid', { enabled: true, weeklySchedule: [SUN] }),
     mk('daily', { enabled: true }),

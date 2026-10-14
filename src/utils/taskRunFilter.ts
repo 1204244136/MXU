@@ -17,13 +17,24 @@ export function isTaskChecked(task: SelectedTask): boolean {
   return task.enabled || Boolean(task.runOnce);
 }
 
+/** 清理配置或共享数据中的周计划；没有有效星期时视为未启用。 */
+export function normalizeWeeklySchedule(value: unknown): number[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const weekdays = value.filter(
+    (day): day is number =>
+      typeof day === 'number' && Number.isInteger(day) && day >= 0 && day <= 6,
+  );
+  const normalized = [...new Set(weekdays)].sort((a, b) => a - b);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 /**
  * 判断任务是否被周计划放行。
  * 缺省或空数组表示未启用周计划，一律放行。
  */
 export function isTaskAllowedByWeeklySchedule(task: SelectedTask, todayWeekday: number): boolean {
-  const schedule = task.weeklySchedule;
-  if (!schedule || schedule.length === 0) {
+  const schedule = normalizeWeeklySchedule(task.weeklySchedule);
+  if (!schedule) {
     return true;
   }
   return schedule.includes(todayWeekday);

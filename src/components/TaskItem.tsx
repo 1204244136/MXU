@@ -31,7 +31,7 @@ import { isMxuSpecialTask, getMxuSpecialTask, findMxuOptionByKey } from '@/types
 import { isPretaskName, getPretaskItem, buildPretaskDef } from '@/types/pretasks';
 import { getInterfaceLangKey } from '@/i18n';
 import { stripInlineRichText } from '@/utils/richText';
-import { isTaskBlockedByWeeklySchedule } from '@/utils/taskRunFilter';
+import { isTaskBlockedByWeeklySchedule, normalizeWeeklySchedule } from '@/utils/taskRunFilter';
 import { useCurrentWeekday } from '@/hooks/useCurrentWeekday';
 import clsx from 'clsx';
 import { loggers } from '@/utils/logger';
@@ -558,7 +558,10 @@ export function TaskItem({ instanceId, task }: TaskItemProps) {
   // 判断是否有描述内容（包括正在加载的情况）
   const hasDescription = !!resolvedDescription.html || resolvedDescription.loading;
   // 周计划：0-6（0=周日）；缺省或空数组表示未启用
-  const weeklySchedule = useMemo(() => task.weeklySchedule ?? [], [task.weeklySchedule]);
+  const weeklySchedule = useMemo(
+    () => normalizeWeeklySchedule(task.weeklySchedule) ?? [],
+    [task.weeklySchedule],
+  );
   const hasWeeklySchedule = weeklySchedule.length > 0;
   const todayWeekday = useCurrentWeekday();
   // 已勾选、但今天不在周计划内：本次启动会被跳过（单次运行不受此限）
