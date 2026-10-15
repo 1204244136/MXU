@@ -348,8 +348,6 @@ export default {
     pretaskExitCode: '事前タスク終了コード: {{code}}',
     pretaskFailed: '事前タスクの実行に失敗しました: {{error}}',
     preActionConnectDelay: '{{seconds}} 秒後に接続します...',
-    autoPreActionName: '▶️ {{name}} を起動',
-    autoPreActionAdded: '前処理プログラムを自動追加しました: {{name}}（デフォルトでは無効）',
     removeConfirmTitle: '前処理プログラムを削除',
     removeConfirmMessage: 'この前処理プログラムを削除してもよろしいですか？',
   },

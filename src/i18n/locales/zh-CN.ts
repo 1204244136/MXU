@@ -341,8 +341,6 @@ export default {
     pretaskExitCode: '预任务退出码: {{code}}',
     pretaskFailed: '预任务执行失败: {{error}}',
     preActionConnectDelay: '等待 {{seconds}} 秒后连接...',
-    autoPreActionName: '▶️ 启动 {{name}}',
-    autoPreActionAdded: '已自动添加前置程序: {{name}}（默认未启用）',
     removeConfirmTitle: '删除前置程序',
     removeConfirmMessage: '确定要删除这个前置程序吗？',
   },
