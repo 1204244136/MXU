@@ -26,6 +26,8 @@ import { getMxuSpecialTask } from '@/types/specialTasks';
 import {
   isPretaskName,
   getPretaskItem,
+  getPretaskItems,
+  pretaskName,
   buildPretaskArgs,
   resolveCompatTaskDef,
 } from '@/types/pretasks';
@@ -476,11 +478,16 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
 
         // v2.7.0: 连接 Controller 前执行 pretask（如游戏设置），先于前置程序运行，
         // 确保诸如注册表写入等操作在应用被前置程序启动之前完成。
-        // pretask 以伪任务形式存在于任务列表中，此处从已启用的兼容任务中筛出。
+        // pretask 以伪任务形式存在于任务列表中，此处从已启用的兼容任务中筛出，
+        // 并按协议以顶层 pretask 的声明顺序执行，与任务列表中的排列无关。
+        const pretaskOrder = getPretaskItems(projectInterface).map((item) => pretaskName(item));
         const enabledPretasks = compatibleTasks
           .filter((task) => isPretaskName(task.taskName))
           .map((task) => ({ task, item: getPretaskItem(projectInterface, task.taskName) }))
-          .filter((p): p is { task: (typeof compatibleTasks)[0]; item: PretaskItem } => !!p.item);
+          .filter((p): p is { task: (typeof compatibleTasks)[0]; item: PretaskItem } => !!p.item)
+          .sort(
+            (a, b) => pretaskOrder.indexOf(a.task.taskName) - pretaskOrder.indexOf(b.task.taskName),
+          );
 
         if (enabledPretasks.length > 0) {
           await beginPreActionControl(targetId);
