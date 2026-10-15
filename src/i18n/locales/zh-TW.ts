@@ -337,8 +337,6 @@ export default {
     pretaskExitCode: '預任務結束碼: {{code}}',
     pretaskFailed: '預任務執行失敗: {{error}}',
     preActionConnectDelay: '等待 {{seconds}} 秒後連線...',
-    autoPreActionName: '▶️ 啟動 {{name}}',
-    autoPreActionAdded: '已自動新增前置程式: {{name}}（預設未啟用）',
     removeConfirmTitle: '刪除前置程式',
     removeConfirmMessage: '確定要刪除這個前置程式嗎？',
   },

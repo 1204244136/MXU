@@ -353,8 +353,6 @@ export default {
     pretaskExitCode: 'Pre-task exit code: {{code}}',
     pretaskFailed: 'Pre-task failed: {{error}}',
     preActionConnectDelay: 'Waiting {{seconds}} seconds before connecting...',
-    autoPreActionName: '▶️ Launch {{name}}',
-    autoPreActionAdded: 'Auto-added pre-action: {{name}} (disabled by default)',
     removeConfirmTitle: 'Delete pre-action',
     removeConfirmMessage: 'Are you sure you want to delete this pre-action?',
   },
