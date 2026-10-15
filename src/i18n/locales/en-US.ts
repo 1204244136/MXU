@@ -203,6 +203,7 @@ export default {
       restart: 'Restart',
       screenoff: 'Turn Off Screen',
       sleep: 'Sleep',
+      hibernate: 'Hibernate',
       mute: 'Mute',
       unmute: 'Unmute',
     },
