@@ -39,6 +39,8 @@ interface SettingsPageProps {
   onClose?: () => void;
 }
 
+const SECTION_SCROLL_OFFSET = 16;
+
 interface RenderSettingsSection extends InterfaceSettingSection {
   resolvedLabel: string;
   resolvedDescription?: string;
@@ -290,14 +292,31 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
     if (!isMobile) setDrawerOpen(false);
   }, [isMobile]);
 
+  // 为最后一个分区保留足够的滚动空间，并随容器尺寸变化更新。
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const updateScrollHeight = () => {
+      container.style.setProperty('--settings-scroll-height', `${container.clientHeight}px`);
+    };
+    updateScrollHeight();
+
+    const observer = new ResizeObserver(updateScrollHeight);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
   // 滚动到指定 section
   const scrollToSection = useCallback((sectionId: string) => {
     const element = document.getElementById(`section-${sectionId}`);
     if (element && scrollContainerRef.current) {
       const container = scrollContainerRef.current;
+      // 尺寸变化后的观察器回调可能尚未执行，定位前同步补足滚动空间。
+      container.style.setProperty('--settings-scroll-height', `${container.clientHeight}px`);
       const elementTop = element.offsetTop - container.offsetTop;
       container.scrollTo({
-        top: elementTop - 16,
+        top: elementTop - SECTION_SCROLL_OFFSET,
         behavior: 'smooth',
       });
     }
@@ -503,7 +522,14 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
             <DebugSection />
 
             {/* 关于 */}
-            <AboutSection />
+            <div
+              style={{
+                // 扣除内容容器 p-6 的底部内边距和滚动定位时的顶部留白。
+                minHeight: `calc(var(--settings-scroll-height, 0px) - 1.5rem - ${SECTION_SCROLL_OFFSET}px)`,
+              }}
+            >
+              <AboutSection />
+            </div>
           </div>
         </div>
       </div>
