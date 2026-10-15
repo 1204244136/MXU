@@ -662,6 +662,13 @@ pub async fn run_pretask(
 
     let mut cmd = super::utils::build_launch_command(&resolved_program, &args, false);
 
+    // pretask 由项目声明、标准流已置空，与 Agent 一样隐藏控制台窗口
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
     // 设置工作目录
     if let Some(ref dir) = cwd {
         cmd.current_dir(dir);
