@@ -312,6 +312,8 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
     const element = document.getElementById(`section-${sectionId}`);
     if (element && scrollContainerRef.current) {
       const container = scrollContainerRef.current;
+      // 尺寸变化后的观察器回调可能尚未执行，定位前同步补足滚动空间。
+      container.style.setProperty('--settings-scroll-height', `${container.clientHeight}px`);
       const elementTop = element.offsetTop - container.offsetTop;
       container.scrollTo({
         top: elementTop - SECTION_SCROLL_OFFSET,
