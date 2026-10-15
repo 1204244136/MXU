@@ -45,6 +45,8 @@ pub(crate) struct AgentOutputBatcher {
     app: tauri::AppHandle,
     instance_id: String,
     state: Mutex<AgentOutputBatchState>,
+    /// 串行化「取出批次 + 发送」，保证 flush 返回时之前入队的输出均已发出
+    emit_lock: Mutex<()>,
 }
 
 impl AgentOutputBatcher {
@@ -59,6 +61,7 @@ impl AgentOutputBatcher {
                 flush_deadline: None,
                 flush_running: false,
             }),
+            emit_lock: Mutex::new(()),
         })
     }
 
@@ -107,6 +110,7 @@ impl AgentOutputBatcher {
                 continue;
             }
 
+            let _emit_guard = self.emit_lock.lock().unwrap();
             let payload = {
                 let mut state = self.state.lock().unwrap();
                 match state.flush_deadline {
@@ -163,6 +167,7 @@ impl AgentOutputBatcher {
 
     /// 立即发送已排队的输出，用于进程结束时保证输出先于后续日志到达前端
     pub(crate) fn flush(&self) {
+        let _emit_guard = self.emit_lock.lock().unwrap();
         let payload = {
             let mut state = self.state.lock().unwrap();
             if state.lines.is_empty() {

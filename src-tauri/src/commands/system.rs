@@ -696,7 +696,12 @@ pub async fn run_pretask(
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_else(|| program.clone())
     );
-    let log_file = ChildOutputLog::new(&format!("mxu-pretask-{}.log", child.id()));
+    // 文件名带时间戳，避免 PID 复用时追加到旧日志
+    let log_file = ChildOutputLog::new(&format!(
+        "mxu-pretask-{}-{}.log",
+        chrono::Local::now().format("%Y%m%d-%H%M%S"),
+        child.id()
+    ));
     let output_batcher = AgentOutputBatcher::new(app, instance_id.clone());
     let mut readers = Vec::new();
     if let Some(stdout) = child.stdout.take() {
