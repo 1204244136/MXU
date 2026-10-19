@@ -2,6 +2,7 @@
 //!
 //! 提供权限检查、系统信息查询、全局选项设置等功能
 
+use super::maa_agent::{spawn_child_output_reader, AgentOutputBatcher, ChildOutputLog};
 use super::types::MaaState;
 use super::types::SystemInfo;
 use super::types::WebView2DirInfo;
@@ -13,7 +14,7 @@ use log::warn;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::OnceLock;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::State;
 use tokio::time::sleep;
 
@@ -637,8 +638,10 @@ pub async fn run_action(
 /// 与 `run_action` 不同：`args` 直接以数组形式传入，不做 shell 分词，从而完整保留
 /// 由 option 序列化得到的单行紧凑 JSON 参数（含引号、花括号）。始终等待进程退出，
 /// 并复用 `pre_action_stop_requests` 支持前置阶段的取消。
+/// 标准输出与 Agent 一致：写入日志文件并显示在日志面板。
 #[tauri::command]
 pub async fn run_pretask(
+    app: tauri::AppHandle,
     state: State<'_, Arc<MaaState>>,
     instance_id: String,
     program: String,
@@ -661,6 +664,17 @@ pub async fn run_pretask(
     };
 
     let mut cmd = super::utils::build_launch_command(&resolved_program, &args, false);
+    cmd.stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .env("PYTHONIOENCODING", "utf-8")
+        .env("PYTHONUTF8", "1");
+
+    // pretask 由项目声明、输出由 MXU 接管，与 Agent 一样隐藏控制台窗口
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
 
     // 设置工作目录
     if let Some(ref dir) = cwd {
@@ -675,6 +689,40 @@ pub async fn run_pretask(
         .spawn()
         .map_err(|e| format!("Failed to run pretask: {} - {}", program, e))?;
 
+    let log_tag = format!(
+        "pretask:{}",
+        std::path::Path::new(&program)
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_else(|| program.clone())
+    );
+    // 文件名带时间戳，避免 PID 复用时追加到旧日志
+    let log_file = ChildOutputLog::new(&format!(
+        "mxu-pretask-{}-{}.log",
+        chrono::Local::now().format("%Y%m%d-%H%M%S"),
+        child.id()
+    ));
+    let output_batcher = AgentOutputBatcher::new(app, instance_id.clone());
+    let mut readers = Vec::new();
+    if let Some(stdout) = child.stdout.take() {
+        readers.push(spawn_child_output_reader(
+            stdout,
+            "stdout",
+            log_tag.clone(),
+            log_file.clone(),
+            output_batcher.clone(),
+        ));
+    }
+    if let Some(stderr) = child.stderr.take() {
+        readers.push(spawn_child_output_reader(
+            stderr,
+            "stderr",
+            log_tag,
+            log_file,
+            output_batcher.clone(),
+        ));
+    }
+
     loop {
         if let Some(status) = child
             .try_wait()
@@ -682,6 +730,15 @@ pub async fn run_pretask(
         {
             let exit_code = status.code().unwrap_or(-1);
             info!("run_pretask finished with exit code: {}", exit_code);
+
+            // 等输出读完再返回，保证失败原因先于退出码显示；
+            // 子孙进程可能继承管道导致迟迟不关闭，因此设置等待上限
+            let deadline = Instant::now() + Duration::from_secs(2);
+            while readers.iter().any(|r| !r.is_finished()) && Instant::now() < deadline {
+                sleep(Duration::from_millis(20)).await;
+            }
+            output_batcher.flush();
+
             return Ok(exit_code);
         }
 

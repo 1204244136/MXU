@@ -26,6 +26,8 @@ import { getMxuSpecialTask } from '@/types/specialTasks';
 import {
   isPretaskName,
   getPretaskItem,
+  getPretaskItems,
+  pretaskName,
   buildPretaskArgs,
   resolveCompatTaskDef,
 } from '@/types/pretasks';
@@ -40,6 +42,7 @@ import {
   getLinuxDiscoveryNeeds,
   isDesktopWindowControllerType,
 } from '@/utils/controller';
+import { buildPlayCoverControllerConfig } from '@/utils/playCoverController';
 import { SchedulePanel } from './SchedulePanel';
 import type {
   Instance,
@@ -390,9 +393,15 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
         return failStart(t('taskList.autoConnect.alreadyRunning'));
       }
 
-      // 获取控制器和资源配置
-      const controllerName = selectedController[targetId] || projectInterface?.controller[0]?.name;
-      const resourceName = selectedResource[targetId] || projectInterface?.resource[0]?.name;
+      // 获取控制器和资源配置：必须按 targetInstance 解析，定时任务启动的实例可能不是当前标签页
+      const controllerName =
+        selectedController[targetId] ||
+        targetInstance.controllerName ||
+        projectInterface?.controller[0]?.name;
+      const resourceName =
+        selectedResource[targetId] ||
+        targetInstance.resourceName ||
+        projectInterface?.resource[0]?.name;
 
       // 过滤掉不兼容当前控制器/资源的任务
       const compatibleTasks = tasksToRun.filter((t) => {
@@ -513,11 +522,16 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
 
         // v2.7.0: 连接 Controller 前执行 pretask（如游戏设置），先于前置程序运行，
         // 确保诸如注册表写入等操作在应用被前置程序启动之前完成。
-        // pretask 以伪任务形式存在于任务列表中，此处从已启用的兼容任务中筛出。
+        // pretask 以伪任务形式存在于任务列表中，此处从已启用的兼容任务中筛出，
+        // 并按协议以顶层 pretask 的声明顺序执行，与任务列表中的排列无关。
+        const pretaskOrder = getPretaskItems(projectInterface).map((item) => pretaskName(item));
         const enabledPretasks = compatibleTasks
           .filter((task) => isPretaskName(task.taskName))
           .map((task) => ({ task, item: getPretaskItem(projectInterface, task.taskName) }))
-          .filter((p): p is { task: (typeof compatibleTasks)[0]; item: PretaskItem } => !!p.item);
+          .filter((p): p is { task: (typeof compatibleTasks)[0]; item: PretaskItem } => !!p.item)
+          .sort(
+            (a, b) => pretaskOrder.indexOf(a.task.taskName) - pretaskOrder.indexOf(b.task.taskName),
+          );
 
         if (enabledPretasks.length > 0) {
           await beginPreActionControl(targetId);
@@ -576,6 +590,7 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
           (a) => a.enabled && a.program.trim(),
         );
         let preActionControlStarted = false;
+        let preActionExecuted = false;
 
         if (allPreActions.length > 0) {
           preActionControlStarted = true;
@@ -614,6 +629,8 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
                 preAction.useCmd ?? false,
               );
               throwIfPreActionStopped(targetId);
+              preActionExecuted = true;
+              needsReconnect = true;
 
               if (exitCode !== 0) {
                 log.warn(`实例 ${targetInstance.name}: 前置动作退出码非零:`, exitCode);
@@ -630,7 +647,7 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
             }
 
             // 所有前置程序执行完毕后，等待设备/窗口就绪再连接
-            const shouldWaitAfterPreActions = !!controller;
+            const shouldWaitAfterPreActions = preActionExecuted && !!controller;
             if (shouldWaitAfterPreActions && controller) {
               const controllerType = controller.type;
               const isWindowType = isDesktopWindowControllerType(controllerType);
@@ -745,7 +762,6 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
                   }
                 }
 
-                needsReconnect = true;
                 // 设备/窗口已就绪，先等待稳定再连接
                 const settleSec = useAppStore.getState().preActionConnectDelaySec ?? 5;
                 if (settleSec > 0) {
@@ -864,11 +880,11 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
               deviceName = savedDevice.wlrSocketPath;
               targetType = 'device';
             } else if (controllerType === 'PlayCover' && savedDevice.playcoverAddress) {
-              config = {
-                type: 'PlayCover',
-                address: savedDevice.playcoverAddress,
-                display_short_side: controller.display_short_side,
-              };
+              config = buildPlayCoverControllerConfig(
+                savedDevice.playcoverAddress,
+                controller.playcover?.uuid,
+                controller.display_short_side,
+              );
               deviceName = savedDevice.playcoverAddress;
               targetType = 'device';
             } else if (controllerType === 'Linux') {
@@ -1227,8 +1243,8 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
               pipeline_override: generateTaskPipelineOverride(
                 selectedTask,
                 projectInterface,
-                currentControllerName,
-                currentResourceName,
+                controllerName,
+                resourceName,
                 useAppStore.getState().globalOptionValues,
               ),
               selected_task_id: selectedTask.id,
@@ -1280,8 +1296,8 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
           tcpCompatMode,
           piEnvs,
           {
-            name: currentControllerName,
-            type: projectInterface?.controller.find((c) => c.name === currentControllerName)?.type,
+            name: controllerName,
+            type: controller.type,
           },
           collectPasswordPlaintextsFromRunnableTasks(
             runnableTasks,

@@ -459,7 +459,9 @@ export interface PresetItem {
   label?: string;
   description?: string;
   icon?: string;
-  task: PresetTaskItem[];
+  task?: PresetTaskItem[];
+  /** v2.10.3: 预设中的预任务配置，name 对应顶层 pretask[].name */
+  pretask?: PresetTaskItem[];
 }
 
 /** v2.3.0: focus 模板，支持字符串简写和对象完整写法 */

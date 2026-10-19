@@ -94,6 +94,8 @@ export default {
     hotkeysHint:
       'Effective only on the main screen, used to start/stop tasks of the current instance. Modifier combinations are supported (e.g. Ctrl+F10, Ctrl+Shift+F11); plain F5/F12 remain reserved by the system/browser.',
     hotkeysConflict: 'Start and stop hotkeys should not be the same. Please choose different keys.',
+    hotkeysModifierRequired:
+      'A single key must be F1–F24. Add a modifier such as Ctrl, Alt, or Shift.',
     hotkeysGlobal: 'Global hotkeys',
     hotkeysGlobalHint: 'Enable hotkeys when window is not focused',
     hotkeysGlobalOnlyStart: 'only start works in global mode',
@@ -201,6 +203,7 @@ export default {
       restart: 'Restart',
       screenoff: 'Turn Off Screen',
       sleep: 'Sleep',
+      hibernate: 'Hibernate',
       mute: 'Mute',
       unmute: 'Unmute',
     },
@@ -357,8 +360,6 @@ export default {
     pretaskExitCode: 'Pre-task exit code: {{code}}',
     pretaskFailed: 'Pre-task failed: {{error}}',
     preActionConnectDelay: 'Waiting {{seconds}} seconds before connecting...',
-    autoPreActionName: '▶️ Launch {{name}}',
-    autoPreActionAdded: 'Auto-added pre-action: {{name}} (disabled by default)',
     removeConfirmTitle: 'Delete pre-action',
     removeConfirmMessage: 'Are you sure you want to delete this pre-action?',
   },

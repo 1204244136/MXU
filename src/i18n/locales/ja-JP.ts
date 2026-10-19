@@ -94,6 +94,8 @@ export default {
       'メイン画面でのみ有効です。現在のインスタンスのタスク開始 / 停止に使用します。Ctrl+F10 や Ctrl+Shift+F11 などの修飾キー付きの組み合わせもサポートします。F5 / F12 単体は引き続きシステム / ブラウザ用に予約されています。',
     hotkeysConflict:
       '開始と停止のショートカットは同じキーにしないでください。別のキーを選択してください。',
+    hotkeysModifierRequired:
+      '単体のキーは F1–F24 のみ使えます。Ctrl、Alt、Shift などの修飾キーを追加してください。',
     hotkeysGlobal: 'グローバルショートカット',
     hotkeysGlobalHint: 'ウィンドウ非アクティブ時もショートカットを有効にする',
     hotkeysGlobalOnlyStart: 'グローバルモードでは開始のみ有効',
@@ -199,6 +201,7 @@ export default {
       restart: '再起動',
       screenoff: '画面オフ',
       sleep: 'スリープ',
+      hibernate: '休止状態',
       mute: 'ミュート',
       unmute: 'ミュート解除',
     },
@@ -352,8 +355,6 @@ export default {
     pretaskExitCode: '事前タスク終了コード: {{code}}',
     pretaskFailed: '事前タスクの実行に失敗しました: {{error}}',
     preActionConnectDelay: '{{seconds}} 秒後に接続します...',
-    autoPreActionName: '▶️ {{name}} を起動',
-    autoPreActionAdded: '前処理プログラムを自動追加しました: {{name}}（デフォルトでは無効）',
     removeConfirmTitle: '前処理プログラムを削除',
     removeConfirmMessage: 'この前処理プログラムを削除してもよろしいですか？',
   },

@@ -93,6 +93,8 @@ export default {
     hotkeysHint:
       '메인 화면에서만 동작하며, 현재 인스턴스의 작업 시작 / 중지에 사용됩니다. Ctrl+F10, Ctrl+Shift+F11 과 같은 조합키도 지원합니다. F5 / F12 단독 키는 계속해서 시스템 / 브라우저용으로 예약됩니다.',
     hotkeysConflict: '시작과 중지 단축키는 서로 다른 키여야 합니다. 다른 키를 선택해 주세요.',
+    hotkeysModifierRequired:
+      '단일 키는 F1–F24만 사용할 수 있습니다. Ctrl, Alt, Shift 같은 보조 키를 함께 누르세요.',
     hotkeysGlobal: '전역 단축키',
     hotkeysGlobalHint: '창이 비활성화되어도 단축키 사용',
     hotkeysGlobalOnlyStart: '전역 모드에서는 시작만 작동',
@@ -196,6 +198,7 @@ export default {
       restart: '재시작',
       screenoff: '화면 끄기',
       sleep: '절전 모드',
+      hibernate: '최대 절전 모드',
       mute: '음소거',
       unmute: '음소거 해제',
     },
@@ -347,8 +350,6 @@ export default {
     pretaskExitCode: '사전 작업 종료 코드: {{code}}',
     pretaskFailed: '사전 작업 실행 실패: {{error}}',
     preActionConnectDelay: '{{seconds}}초 후 연결합니다...',
-    autoPreActionName: '▶️ {{name}} 실행',
-    autoPreActionAdded: '전처리 프로그램 자동 추가: {{name}} (기본적으로 비활성화)',
     removeConfirmTitle: '전처리 프로그램 삭제',
     removeConfirmMessage: '이 전처리 프로그램을 삭제하시겠습니까?',
   },
