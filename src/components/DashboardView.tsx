@@ -39,7 +39,7 @@ import { getInterfaceLangKey } from '@/i18n';
 import { getMxuSpecialTask } from '@/types/specialTasks';
 import { isTaskCompatible } from '@/stores/helpers';
 import { isPretaskName, getPretaskItem, buildPretaskArgs, buildPretaskDef } from '@/types/pretasks';
-import { getWeekdayOf, isTaskBlockedByWeeklySchedule } from '@/utils/taskRunFilter';
+import { getWeekdayOf, filterTasksForRun, createTaskRunSelection } from '@/utils/taskRunFilter';
 import { resolveTaskLabel } from '@/utils/taskLabel';
 import { useCurrentWeekday } from '@/hooks/useCurrentWeekday';
 import { startGlobalCallbackListener } from '@/components/connection/callbackCache';
@@ -79,6 +79,7 @@ function InstanceCard({ instanceId, instanceName, isActive, onSelect }: Instance
     // 任务控制相关
     updateInstance,
     setInstanceTaskStatus,
+    setTaskRunSelection,
     setInstanceCurrentTaskId,
     clearScheduleExecution,
     basePath,
@@ -123,10 +124,8 @@ function InstanceCard({ instanceId, instanceName, isActive, onSelect }: Instance
   // 本视图的启动流程是独立实现（不走 Toolbar.startTasksForInstance），
   // 因此这里必须自行过滤，否则周计划在 Dashboard 视图下会失效。
   const todayWeekday = useCurrentWeekday();
-  const hasEnabledTasks = tasks.some(
-    (t) => t.enabled && !isTaskBlockedByWeeklySchedule(t, todayWeekday),
-  );
-  const canRun = isConnected && isResourceLoaded && hasEnabledTasks;
+  const runPreview = filterTasksForRun(tasks, todayWeekday);
+  const canRun = isConnected && isResourceLoaded && runPreview.tasks.length > 0;
 
   // 获取当前控制器和资源名（用于 pipeline override 生成）
   const currentControllerName =
@@ -246,21 +245,19 @@ function InstanceCard({ instanceId, instanceName, isActive, onSelect }: Instance
         const runTasks =
           useAppStore.getState().instances.find((item) => item.id === instanceId)?.selectedTasks ||
           [];
-        const enabledTasks = runTasks.filter(
-          (task) => task.enabled && !isTaskBlockedByWeeklySchedule(task, runWeekday),
-        );
+        const runSelection = filterTasksForRun(runTasks, runWeekday);
+        const enabledTasks = runSelection.tasks;
+        setTaskRunSelection(instanceId, createTaskRunSelection(runSelection, runWeekday));
 
         // 周计划：记录本次被跳过的任务，避免"任务莫名没跑"
-        runTasks
-          .filter((task) => isTaskBlockedByWeeklySchedule(task, runWeekday))
-          .forEach((task) => {
-            addLog(instanceId, {
-              type: 'info',
-              message: t('taskList.taskSkippedByWeeklySchedule', {
-                taskName: resolveTaskLabel(task, projectInterface, translations, t),
-              }),
-            });
+        runSelection.skippedByWeeklySchedule.forEach((task) => {
+          addLog(instanceId, {
+            type: 'info',
+            message: t('taskList.taskSkippedByWeeklySchedule', {
+              taskName: resolveTaskLabel(task, projectInterface, translations, t),
+            }),
           });
+        });
 
         if (enabledTasks.length === 0) return;
 
@@ -471,6 +468,7 @@ function InstanceCard({ instanceId, instanceName, isActive, onSelect }: Instance
       basePath,
       updateInstance,
       setInstanceTaskStatus,
+      setTaskRunSelection,
       setInstanceCurrentTaskId,
       clearScheduleExecution,
       registerTaskIdName,
@@ -813,7 +811,9 @@ function InstanceCard({ instanceId, instanceName, isActive, onSelect }: Instance
                     ? t('taskList.stopTasks')
                     : canRun
                       ? t('taskList.startTasks')
-                      : t('dashboard.noEnabledTasks')
+                      : runPreview.skippedByWeeklySchedule.length > 0
+                        ? t('taskList.allTasksSkippedByWeeklySchedule')
+                        : t('dashboard.noEnabledTasks')
             }
           >
             {isStarting || isStopping ? (

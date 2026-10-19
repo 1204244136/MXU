@@ -218,9 +218,10 @@ export default {
     stopTasks: '실행 중지',
     startingTasks: '시작 중...',
     stoppingTasks: '중지 중...',
-    taskSkippedByWeeklySchedule: '작업 「{{taskName}}」 건너뜀: 오늘은 주간 일정에 없습니다',
+    taskSkippedByWeeklySchedule:
+      '작업 「{{taskName}}」은 오늘 실행 대상이 아닙니다: 주간 일정에 오늘이 포함되어 있지 않습니다',
     allTasksSkippedByWeeklySchedule:
-      '오늘 실행할 작업이 없습니다: 선택한 작업이 모두 오늘의 주간 일정에 없습니다',
+      '작업을 시작하지 않았습니다: 선택한 작업 중 오늘의 주간 일정에 맞는 작업이 없습니다',
     checkboxTaskScope: '작업 「{{task}}」',
     checkboxGlobalScope: '전역 설정',
     checkboxMinimumNotMet:
@@ -275,8 +276,9 @@ export default {
     clickToToggle: '클릭하여 전환',
     runOnceHint: '1회 실행: 다음 시작 시 한 번만 실행',
     weeklyScheduleTitle: '주간 일정',
-    weeklyScheduleSkippedToday: '오늘은 건너뜀',
-    weeklyScheduleSkippedTodayHint: '주간 일정: 오늘은 실행하지 않습니다',
+    weeklyScheduleSkippedToday: '오늘은 실행 대상 아님',
+    weeklyScheduleSkippedTodayHint:
+      '선택은 유지되지만 오늘은 주간 일정에 없어 일반적으로 시작할 때 실행 대기열에 추가되지 않습니다. 개별 실행하거나 1회 실행으로 설정할 수 있습니다.',
     weeklyScheduleToday: '오늘',
     renameTask: '작업 이름 변경',
     customName: '사용자 지정 이름',
@@ -519,7 +521,7 @@ export default {
       taskFailed: '작업 실패: {{name}}',
       stopTask: '작업 중지',
       // 예약 메시지
-      scheduleStarting: '예약 실행 시작 [{{policy}}] {{time}}',
+      scheduleStarting: '예약 일정 도달 [{{policy}}] {{time}}, 실행할 작업 확인 중',
       // Agent 메시지
       agentStarting: 'Agent 시작 중...',
       agentStarted: 'Agent가 시작되었습니다',

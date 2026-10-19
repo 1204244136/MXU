@@ -1880,6 +1880,7 @@ export const useAppStore = create<AppState>()(
         const resourceLoaded: Record<string, boolean> = {};
         const taskStatus: Record<string, TaskStatus | null> = {};
         const instanceTaskRunStatus: Record<string, Record<string, TaskRunStatus>> = {};
+        const instanceTaskRunSelection = { ...currentState.instanceTaskRunSelection };
         const maaTaskIdMapping: Record<string, Record<number, string>> = {};
         const instancePendingTaskIds: Record<string, number[]> = {};
         const instanceCurrentTaskIndex: Record<string, number> = {};
@@ -1915,6 +1916,24 @@ export const useAppStore = create<AppState>()(
             }
             maaTaskIdMapping[instanceId] = mappings;
 
+            // 另一端可能已启动新批次（甚至瞬时完成）；新任务 ID 证明它不是旧批次残留。
+            const previousMappings = currentState.maaTaskIdMapping[instanceId] ?? {};
+            const hasNewTasks = Object.entries(mappings).some(
+              ([maaId, selectedId]) => previousMappings[Number(maaId)] !== selectedId,
+            );
+            const selection = instanceTaskRunSelection[instanceId];
+            const includedTaskIds = [...new Set(Object.values(mappings))];
+            if (
+              hasNewTasks &&
+              (!selection || includedTaskIds.some((id) => !selection.includedTaskIds.includes(id)))
+            ) {
+              instanceTaskRunSelection[instanceId] = {
+                weekday: new Date().getDay(),
+                includedTaskIds,
+                excludedByWeeklyScheduleIds: [],
+              };
+            }
+
             instancePendingTaskIds[instanceId] = trs.pendingTaskIds ?? [];
             instanceCurrentTaskIndex[instanceId] = trs.currentTaskIndex ?? 0;
 
@@ -1940,6 +1959,7 @@ export const useAppStore = create<AppState>()(
           instanceResourceLoaded: resourceLoaded,
           instanceTaskStatus: taskStatus,
           instanceTaskRunStatus,
+          instanceTaskRunSelection,
           maaTaskIdMapping,
           instancePendingTaskIds,
           instanceCurrentTaskIndex,
@@ -2243,6 +2263,11 @@ export const useAppStore = create<AppState>()(
 
     // 任务运行状态（只读缓存，由 restoreBackendStates 填充）
     instanceTaskRunStatus: {},
+    instanceTaskRunSelection: {},
+    setTaskRunSelection: (instanceId, selection) =>
+      set((state) => ({
+        instanceTaskRunSelection: { ...state.instanceTaskRunSelection, [instanceId]: selection },
+      })),
     maaTaskIdMapping: {},
     instancePendingTaskIds: {},
     instanceCurrentTaskIndex: {},
@@ -2266,6 +2291,9 @@ export const useAppStore = create<AppState>()(
 
     clearTaskRunStatus: (instanceId) => {
       set((state) => ({
+        instanceTaskRunSelection: Object.fromEntries(
+          Object.entries(state.instanceTaskRunSelection).filter(([id]) => id !== instanceId),
+        ),
         instanceTaskRunStatus: Object.fromEntries(
           Object.entries(state.instanceTaskRunStatus).filter(([id]) => id !== instanceId),
         ),

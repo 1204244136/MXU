@@ -66,6 +66,24 @@ export interface TaskRunFilterResult {
   skippedByWeeklySchedule: SelectedTask[];
 }
 
+/** 启动时的参与快照；未纳入不是一种任务执行结果。 */
+export interface TaskRunSelection {
+  weekday: number;
+  includedTaskIds: string[];
+  excludedByWeeklyScheduleIds: string[];
+}
+
+export function createTaskRunSelection(
+  result: TaskRunFilterResult,
+  weekday: number,
+): TaskRunSelection {
+  return {
+    weekday,
+    includedTaskIds: result.tasks.map((task) => task.id),
+    excludedByWeeklyScheduleIds: result.skippedByWeeklySchedule.map((task) => task.id),
+  };
+}
+
 /** 提取"已勾选但今天不在周计划内"的任务（未勾选、单次运行的任务不算） */
 function collectWeeklySkipped(tasks: SelectedTask[], todayWeekday: number): SelectedTask[] {
   return tasks.filter((task) => isTaskBlockedByWeeklySchedule(task, todayWeekday));

@@ -66,6 +66,7 @@ import {
   isTaskSelectedForRun,
   isTaskChecked,
   filterTasksForRun,
+  createTaskRunSelection,
   getWeekdayOf,
 } from '@/utils/taskRunFilter';
 import { resolveTaskLabel } from '@/utils/taskLabel';
@@ -170,6 +171,7 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
     instanceResourceLoaded,
     setInstanceCurrentTaskId,
     setInstanceTaskStatus,
+    setTaskRunSelection,
     setInstanceConnectionStatus,
     setInstanceResourceLoaded,
     selectedController,
@@ -253,7 +255,8 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
   // 只要有"今天会被执行"的任务就可以运行（连接和资源加载会在 startTasksForInstance 中自动处理）
   // 被周计划跳过的任务不计入；跨天或窗口恢复后自动刷新
   const todayWeekday = useCurrentWeekday();
-  const canRun = tasks.some((t) => isTaskSelectedForRun(t, todayWeekday));
+  const runPreview = filterTasksForRun(tasks, todayWeekday);
+  const canRun = runPreview.tasks.length > 0;
   // 已勾选的任务今天全部被周计划跳过：用于解释开始按钮为何不可用
   const allCheckedSkippedByWeeklySchedule = !canRun && tasks.some(isTaskChecked);
 
@@ -347,13 +350,19 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
         return false;
       };
 
+      // 运行中的批次快照不能被另一次启动请求覆盖。
+      if (targetInstance.isRunning || preActionControlledInstanceIdRef.current === targetId) {
+        return failStart(t('taskList.autoConnect.alreadyRunning'));
+      }
+
       // 周计划以本次启动时刻的星期为准，整个运行期不再变化
       const runWeekday = getWeekdayOf();
-      const { tasks: tasksToRun, skippedByWeeklySchedule } = filterTasksForRun(
-        targetTasks,
-        runWeekday,
-        { startFromTaskId, singleTaskId },
-      );
+      const runSelection = filterTasksForRun(targetTasks, runWeekday, {
+        startFromTaskId,
+        singleTaskId,
+      });
+      const { tasks: tasksToRun, skippedByWeeklySchedule } = runSelection;
+      setTaskRunSelection(targetId, createTaskRunSelection(runSelection, runWeekday));
 
       // 被周计划跳过的任务逐条记录日志（不算失败，其余任务照常执行）
       const logWeeklySkipped = () => {
@@ -387,11 +396,6 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
 
       // 部分任务被周计划跳过：记录日志后继续执行其余任务
       logWeeklySkipped();
-
-      // 检查是否正在运行
-      if (targetInstance.isRunning || preActionControlledInstanceIdRef.current === targetId) {
-        return failStart(t('taskList.autoConnect.alreadyRunning'));
-      }
 
       // 获取控制器和资源配置：必须按 targetInstance 解析，定时任务启动的实例可能不是当前标签页
       const controllerName =
@@ -1273,6 +1277,8 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
             })
           : undefined;
 
+        // 连接切换可能清理本地运行缓存；提交前恢复同一份筛选快照。
+        setTaskRunSelection(targetId, createTaskRunSelection(runSelection, runWeekday));
         updateInstance(targetId, { isRunning: true });
         setInstanceTaskStatus(targetId, 'Running');
         setShowAddTaskPanel(false);
@@ -1385,6 +1391,7 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
     [
       projectInterface,
       translations,
+      setTaskRunSelection,
       basePath,
       selectedController,
       selectedResource,
@@ -1444,7 +1451,7 @@ export function Toolbar({ showAddPanel, onToggleAddPanel, className }: ToolbarPr
       if (started) {
         log.info(`定时任务启动成功: 实例 "${inst.name}"`);
       } else {
-        log.warn(`定时任务启动失败或跳过: 实例 "${inst.name}"`);
+        log.info(`定时策略触发后未启动任务: 实例 "${inst.name}"`);
       }
 
       return started;

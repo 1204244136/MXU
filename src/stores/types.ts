@@ -24,6 +24,7 @@ import type {
   GamescopeInstance,
 } from '@/types/maa';
 import type { AccentColor, CustomAccent } from '@/themes';
+import type { TaskRunSelection } from '@/utils/taskRunFilter';
 
 /** 单个任务的运行状态 */
 export type TaskRunStatus = 'idle' | 'pending' | 'running' | 'succeeded' | 'failed';
@@ -493,6 +494,9 @@ export interface AppState {
 
   // 任务运行状态（只读缓存，由 restoreBackendStates 从后端填充）
   instanceTaskRunStatus: Record<string, Record<string, TaskRunStatus>>;
+  /** 本地启动参与快照，与后端执行状态分开，不写入配置。 */
+  instanceTaskRunSelection: Record<string, TaskRunSelection>;
+  setTaskRunSelection: (instanceId: string, selection: TaskRunSelection) => void;
   maaTaskIdMapping: Record<string, Record<number, string>>;
   instancePendingTaskIds: Record<string, number[]>;
   instanceCurrentTaskIndex: Record<string, number>;

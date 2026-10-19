@@ -345,6 +345,7 @@ export function TaskItem({ instanceId, task }: TaskItemProps) {
     getActiveInstance,
     showOptionPreview,
     instanceTaskRunStatus,
+    instanceTaskRunSelection,
     instances,
     findMaaTaskIdBySelectedTaskId,
     basePath,
@@ -353,12 +354,29 @@ export function TaskItem({ instanceId, task }: TaskItemProps) {
     removeAnimatingTaskId,
   } = useAppStore();
 
-  // 获取任务运行状态
-  const taskRunStatus: TaskRunStatus = instanceTaskRunStatus[instanceId]?.[task.id] || 'idle';
-
   // 获取实例运行状态
   const instance = instances.find((i) => i.id === instanceId);
   const isInstanceRunning = instance?.isRunning || false;
+  const todayWeekday = useCurrentWeekday();
+  const runSelection = instanceTaskRunSelection[instanceId];
+  const backendTaskRunStatus: TaskRunStatus =
+    instanceTaskRunStatus[instanceId]?.[task.id] || 'idle';
+  // 后端正在排队/执行的事实优先；刷新页面恢复的批次可能没有本地筛选快照。
+  const hasCurrentExecution =
+    backendTaskRunStatus === 'pending' || backendTaskRunStatus === 'running';
+  const weeklyScheduleBlockedToday =
+    !hasCurrentExecution &&
+    (runSelection
+      ? runSelection.excludedByWeeklyScheduleIds.includes(task.id)
+      : !(isInstanceRunning && backendTaskRunStatus !== 'idle') &&
+        isTaskBlockedByWeeklySchedule(task, todayWeekday));
+  // 历史成功/失败不能冒充本次结果；显式单独运行、跨午夜时以启动快照为准。
+  const taskRunStatus: TaskRunStatus =
+    !hasCurrentExecution &&
+    (weeklyScheduleBlockedToday ||
+      (runSelection && !runSelection.includedTaskIds.includes(task.id)))
+      ? 'idle'
+      : backendTaskRunStatus;
 
   // 获取任务定义 - 支持 MXU 内置特殊任务与 pretask 前置任务
   const isMxuTask = isMxuSpecialTask(task.taskName);
@@ -425,7 +443,10 @@ export function TaskItem({ instanceId, task }: TaskItemProps) {
   ]);
 
   // 紧凑模式：实例运行时，未参与运行的任务显示为紧凑样式
-  const isCompact = isInstanceRunning && !task.enabled && !task.runOnce && taskRunStatus === 'idle';
+  const isCompact =
+    isInstanceRunning &&
+    (weeklyScheduleBlockedToday || (!task.enabled && !task.runOnce)) &&
+    taskRunStatus === 'idle';
 
   // 判断是否可以编辑选项：实例未运行时始终可以编辑，运行中只有 pending 或 idle 状态的任务可以编辑
   const canEditOptions =
@@ -563,9 +584,6 @@ export function TaskItem({ instanceId, task }: TaskItemProps) {
     [task.weeklySchedule],
   );
   const hasWeeklySchedule = weeklySchedule.length > 0;
-  const todayWeekday = useCurrentWeekday();
-  // 已勾选、但今天不在周计划内：本次启动会被跳过（单次运行不受此限）
-  const weeklyScheduleBlockedToday = isTaskBlockedByWeeklySchedule(task, todayWeekday);
   const weekdayLabels = t('schedule.weekdays', { returnObjects: true }) as string[];
   // 有选项、有描述或启用了周计划时都可以展开
   const canExpand = hasOptions || hasDescription || hasWeeklySchedule;
@@ -1003,11 +1021,13 @@ export function TaskItem({ instanceId, task }: TaskItemProps) {
                 <span
                   className={clsx(
                     'min-w-0 text-sm font-medium truncate',
-                    task.enabled
-                      ? 'text-text-primary'
-                      : task.runOnce
-                        ? 'text-accent'
-                        : 'text-text-muted',
+                    weeklyScheduleBlockedToday
+                      ? 'text-text-muted'
+                      : task.enabled
+                        ? 'text-text-primary'
+                        : task.runOnce
+                          ? 'text-accent'
+                          : 'text-text-muted',
                   )}
                 >
                   {displayName}
@@ -1018,6 +1038,17 @@ export function TaskItem({ instanceId, task }: TaskItemProps) {
                   </span>
                 )}
               </div>
+
+              {weeklyScheduleBlockedToday && (
+                <span
+                  data-role="weekly-schedule-exclusion"
+                  className="ml-2 inline-flex items-center gap-1 shrink-0 rounded bg-bg-hover px-1.5 py-0.5 text-xs text-text-muted"
+                  title={t('taskItem.weeklyScheduleSkippedTodayHint')}
+                >
+                  <CalendarDays className="h-3 w-3" />
+                  {t('taskItem.weeklyScheduleSkippedToday')}
+                </span>
+              )}
 
               {/* 不带选项的任务：直接显示不兼容警告 */}
               {!canExpand && isIncompatible && (
@@ -1146,7 +1177,7 @@ export function TaskItem({ instanceId, task }: TaskItemProps) {
                       {t('taskItem.weeklyScheduleTitle')}
                     </span>
                     {weeklyScheduleBlockedToday && (
-                      <span className="text-xs text-warning">
+                      <span className="text-xs text-text-muted">
                         · {t('taskItem.weeklyScheduleSkippedToday')}
                       </span>
                     )}

@@ -221,9 +221,10 @@ export default {
     stopTasks: '実行停止',
     startingTasks: '開始中...',
     stoppingTasks: '停止中...',
-    taskSkippedByWeeklySchedule: 'タスク「{{taskName}}」をスキップ：本日は週間スケジュール外です',
+    taskSkippedByWeeklySchedule:
+      'タスク「{{taskName}}」は本日の実行対象外です：週間スケジュールに本日は含まれていません',
     allTasksSkippedByWeeklySchedule:
-      '本日実行するタスクはありません：選択中のタスクはすべて本日の週間スケジュール外です',
+      'タスクは開始されませんでした：選択中のタスクに本日の週間スケジュールに合うものがありません',
     checkboxTaskScope: 'タスク「{{task}}」',
     checkboxGlobalScope: 'グローバル設定',
     checkboxMinimumNotMet:
@@ -280,8 +281,9 @@ export default {
     clickToToggle: 'クリックで切替',
     runOnceHint: '単発実行：次回起動時に1回だけ実行',
     weeklyScheduleTitle: '週間スケジュール',
-    weeklyScheduleSkippedToday: '本日はスキップ',
-    weeklyScheduleSkippedTodayHint: '週間スケジュール：本日は実行しません',
+    weeklyScheduleSkippedToday: '本日は対象外',
+    weeklyScheduleSkippedTodayHint:
+      '選択は維持されますが、本日は週間スケジュール外のため、通常の開始操作では実行キューに追加されません。個別に実行するか、単発実行に設定できます。',
     weeklyScheduleToday: '今日',
     renameTask: 'タスク名を変更',
     customName: 'カスタム名',
@@ -528,7 +530,7 @@ export default {
       taskFailed: 'タスクが失敗しました: {{name}}',
       stopTask: 'タスクを停止',
       // スケジュールメッセージ
-      scheduleStarting: 'スケジュール実行を開始 [{{policy}}] {{time}}',
+      scheduleStarting: 'スケジュールが発動 [{{policy}}] {{time}}、実行対象のタスクを確認中',
       // Agent メッセージ
       agentStarting: 'Agent を起動中...',
       agentStarted: 'Agent が起動しました',

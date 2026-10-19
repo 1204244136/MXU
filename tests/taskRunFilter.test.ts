@@ -17,6 +17,7 @@ import {
   isTaskChecked,
   isTaskSelectedForRun,
   normalizeWeeklySchedule,
+  createTaskRunSelection,
 } from '../src/utils/taskRunFilter.ts';
 
 const SUN = 0;
@@ -37,6 +38,25 @@ function mk(id, opts = {}) {
 }
 
 const ids = (tasks) => tasks.map((t) => t.id);
+
+test('启动参与快照只记录纳入和未纳入，不生成未纳入任务的执行结果', () => {
+  const tasks = [
+    mk('weekly', { enabled: true, weeklySchedule: [SUN] }),
+    mk('daily', { enabled: true }),
+  ];
+  const result = filterTasksForRun(tasks, WED);
+  const snapshot = createTaskRunSelection(result, WED);
+  assert.deepEqual(snapshot, {
+    weekday: WED,
+    includedTaskIds: ['daily'],
+    excludedByWeeklyScheduleIds: ['weekly'],
+  });
+  // 日期或列表变化不会改变已生成批次的参与范围。
+  tasks[0].weeklySchedule = [WED];
+  result.tasks.length = 0;
+  assert.deepEqual(snapshot.includedTaskIds, ['daily']);
+  assert.deepEqual(snapshot.excludedByWeeklyScheduleIds, ['weekly']);
+});
 
 test('周计划清理：保留有效整数、去重排序，且不修改输入', () => {
   const input = [WED, SUN, WED, 6, -1, 7, 1.5, '1', null, NaN, Infinity];

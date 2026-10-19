@@ -214,8 +214,8 @@ export default {
     stopTasks: '停止任務',
     startingTasks: '啟動中...',
     stoppingTasks: '停止中...',
-    taskSkippedByWeeklySchedule: '跳過任務「{{taskName}}」：今天不在週計畫內',
-    allTasksSkippedByWeeklySchedule: '今日無任務需執行：已勾選的任務今天都不在週計畫內',
+    taskSkippedByWeeklySchedule: '任務「{{taskName}}」今日不參與：週計畫未安排今天',
+    allTasksSkippedByWeeklySchedule: '未啟動任務：今天沒有符合週計畫的已選任務',
     checkboxTaskScope: '任務「{{task}}」',
     checkboxGlobalScope: '全域設定',
     checkboxMinimumNotMet:
@@ -269,8 +269,9 @@ export default {
     clickToToggle: '單擊選中/取消',
     runOnceHint: '單次執行：下次啟動時執行一次',
     weeklyScheduleTitle: '週計畫',
-    weeklyScheduleSkippedToday: '今天不執行',
-    weeklyScheduleSkippedTodayHint: '週計畫：今天不執行此任務',
+    weeklyScheduleSkippedToday: '今日不參與',
+    weeklyScheduleSkippedTodayHint:
+      '已保持勾選，但今天不在週計畫內，一般啟動時不會加入執行佇列；可單獨執行或設為單次執行',
     weeklyScheduleToday: '今天',
     renameTask: '重新命名任務',
     customName: '自訂名稱',
@@ -507,7 +508,7 @@ export default {
       taskFailed: '任務失敗: {{name}}',
       stopTask: '停止任務',
       // 定時任務訊息
-      scheduleStarting: '定時執行開始 [{{policy}}] {{time}}',
+      scheduleStarting: '定時策略已觸發 [{{policy}}] {{time}}，正在檢查待執行任務',
       // Agent 訊息
       agentStarting: 'Agent 正在啟動...',
       agentStarted: 'Agent 已啟動',
