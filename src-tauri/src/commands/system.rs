@@ -9,7 +9,6 @@ use super::types::WebView2DirInfo;
 use super::utils::get_maafw_dir;
 use clap::Parser;
 use log::info;
-#[cfg(windows)]
 use log::warn;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -755,6 +754,10 @@ pub async fn run_pretask(
                 "run_pretask wait cancelled by stop request: {}",
                 instance_id
             );
+            // pretask 由项目声明、受 MXU 管理，与前置程序不同，停止时直接终止，避免其在后台继续操作
+            if let Err(e) = child.kill() {
+                warn!("Failed to kill pretask {}: {}", program, e);
+            }
             std::thread::spawn(move || {
                 let _ = child.wait();
             });
